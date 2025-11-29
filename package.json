@@ -1,7 +1,7 @@
 {
-  "name": "license-server",
+  "name": "music-license-server",
   "version": "1.0.0",
-  "description": "Music License Management System",
+  "description": "Archie License Management System",
   "main": "license-server.js",
   "scripts": {
     "start": "node license-server.js"
