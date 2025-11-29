@@ -68,6 +68,24 @@ app.get('/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Roblox test endpoint
+app.get('/api/test', (req, res) => {
+    res.json({ 
+        status: 'ok', 
+        message: 'Roblox can reach this server',
+        timestamp: new Date().toISOString() 
+    });
+});
+
+app.post('/api/test', (req, res) => {
+    res.json({ 
+        status: 'ok', 
+        message: 'POST request received',
+        body: req.body,
+        timestamp: new Date().toISOString() 
+    });
+});
+
 // ============================================
 // ROBLOX LICENSE VERIFICATION
 // ============================================
