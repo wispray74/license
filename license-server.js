@@ -6,13 +6,23 @@ const crypto = require('crypto');
 const app = express();
 const port = process.env.PORT || 3000;
 
+// CORS middleware
+app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type');
+    if (req.method === 'OPTIONS') {
+        return res.sendStatus(200);
+    }
+    next();
+});
+
 app.use(express.json());
 
 const LICENSE_FILE = path.join(__dirname, 'licenses.json');
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 
-// Read/Write licenses
 function readLicenses() {
     try {
         if (!fs.existsSync(LICENSE_FILE)) {
@@ -53,14 +63,22 @@ function authenticateAdmin(username, password) {
     return username === ADMIN_USERNAME && password === ADMIN_PASSWORD;
 }
 
+// Health check
+app.get('/health', (req, res) => {
+    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 // ============================================
 // ROBLOX LICENSE VERIFICATION
 // ============================================
 
 app.post('/api/license/verify', (req, res) => {
+    console.log('📥 Verification request:', req.body);
+    
     const { licenseKey, universeId, placeId } = req.body;
     
     if (!licenseKey || !universeId) {
+        console.log('❌ Missing parameters');
         return res.status(400).json({ 
             valid: false, 
             error: 'Missing parameters',
@@ -303,7 +321,6 @@ app.get('/', (req, res) => {
             <p>Admin Control Panel</p>
         </div>
         
-        <!-- Login -->
         <div id="loginBox" class="login-box">
             <form id="loginForm">
                 <div class="form-group">
@@ -319,12 +336,10 @@ app.get('/', (req, res) => {
             </form>
         </div>
         
-        <!-- Main Panel -->
         <div id="mainPanel" class="hidden">
             <div class="alert success" id="successAlert"></div>
             <div class="alert error" id="errorAlert"></div>
             
-            <!-- Stats -->
             <div class="stats">
                 <div class="stat-card">
                     <div class="stat-value" id="totalLicenses">0</div>
@@ -344,7 +359,6 @@ app.get('/', (req, res) => {
                 </div>
             </div>
             
-            <!-- Create License -->
             <div class="section">
                 <h2>➕ Create New License</h2>
                 <form id="createForm">
@@ -366,7 +380,6 @@ app.get('/', (req, res) => {
                 </form>
             </div>
             
-            <!-- Update Version -->
             <div class="section">
                 <h2>📦 Script Version</h2>
                 <form id="versionForm">
@@ -390,7 +403,6 @@ app.get('/', (req, res) => {
                 </form>
             </div>
             
-            <!-- Licenses Table -->
             <div class="section">
                 <h2>📋 All Licenses</h2>
                 <table>
@@ -415,7 +427,6 @@ app.get('/', (req, res) => {
     <script>
         let token = null;
         
-        // Login
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const username = document.getElementById('username').value;
@@ -443,7 +454,6 @@ app.get('/', (req, res) => {
             }
         });
         
-        // Create License
         document.getElementById('createForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
@@ -464,8 +474,6 @@ app.get('/', (req, res) => {
                     showSuccess('License created: ' + data.licenseKey);
                     document.getElementById('createForm').reset();
                     loadLicenses();
-                    
-                    // Copy to clipboard
                     navigator.clipboard.writeText(data.licenseKey);
                 } else {
                     showError(data.error || 'Failed to create');
@@ -475,7 +483,6 @@ app.get('/', (req, res) => {
             }
         });
         
-        // Update Version
         document.getElementById('versionForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
@@ -503,7 +510,6 @@ app.get('/', (req, res) => {
             }
         });
         
-        // Load Licenses
         async function loadLicenses() {
             try {
                 const response = await fetch('/api/admin/licenses?token=' + encodeURIComponent(token));
@@ -512,13 +518,11 @@ app.get('/', (req, res) => {
                 if (data.success) {
                     const licenses = data.licenses;
                     
-                    // Update stats
                     document.getElementById('totalLicenses').textContent = licenses.length;
                     document.getElementById('activeLicenses').textContent = licenses.filter(l => l.active).length;
                     document.getElementById('lockedLicenses').textContent = licenses.filter(l => l.universeId).length;
                     document.getElementById('scriptVersion').textContent = data.scriptVersion;
                     
-                    // Update table
                     const tbody = document.getElementById('licensesTable');
                     if (licenses.length === 0) {
                         tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #64748b;">No licenses yet</td></tr>';
@@ -555,7 +559,6 @@ app.get('/', (req, res) => {
             }
         }
         
-        // Toggle License
         async function toggleLicense(licenseKey) {
             try {
                 const response = await fetch('/api/admin/licenses/toggle', {
@@ -574,7 +577,6 @@ app.get('/', (req, res) => {
             }
         }
         
-        // Reset HWID
         async function resetHWID(licenseKey) {
             if (!confirm('Reset HWID for this license?')) return;
             
@@ -595,7 +597,6 @@ app.get('/', (req, res) => {
             }
         }
         
-        // Delete License
         async function deleteLicense(licenseKey) {
             if (!confirm('Delete license: ' + licenseKey + '?')) return;
             
@@ -616,13 +617,11 @@ app.get('/', (req, res) => {
             }
         }
         
-        // Copy Text
         function copyText(text) {
             navigator.clipboard.writeText(text);
             showSuccess('Copied: ' + text);
         }
         
-        // Alerts
         function showSuccess(msg) {
             const alert = document.getElementById('successAlert');
             alert.textContent = msg;
@@ -641,7 +640,6 @@ app.get('/', (req, res) => {
 </html>`);
 });
 
-// Admin Auth
 app.post('/api/admin/auth', (req, res) => {
     const { username, password } = req.body;
     
@@ -653,7 +651,6 @@ app.post('/api/admin/auth', (req, res) => {
     }
 });
 
-// Get all licenses
 app.get('/api/admin/licenses', (req, res) => {
     const token = req.query.token;
     if (!token) return res.status(401).json({ success: false });
@@ -683,7 +680,6 @@ app.get('/api/admin/licenses', (req, res) => {
     }
 });
 
-// Create license
 app.post('/api/admin/licenses/create', (req, res) => {
     const { token, owner, expiryDays, notes } = req.body;
     if (!token) return res.status(401).json({ success: false });
@@ -728,7 +724,6 @@ app.post('/api/admin/licenses/create', (req, res) => {
     }
 });
 
-// Toggle license
 app.post('/api/admin/licenses/toggle', (req, res) => {
     const { token, licenseKey } = req.body;
     if (!token) return res.status(401).json({ success: false });
@@ -757,7 +752,6 @@ app.post('/api/admin/licenses/toggle', (req, res) => {
     }
 });
 
-// Delete license
 app.post('/api/admin/licenses/delete', (req, res) => {
     const { token, licenseKey } = req.body;
     if (!token) return res.status(401).json({ success: false });
@@ -786,7 +780,6 @@ app.post('/api/admin/licenses/delete', (req, res) => {
     }
 });
 
-// Reset HWID
 app.post('/api/admin/licenses/reset-hwid', (req, res) => {
     const { token, licenseKey } = req.body;
     if (!token) return res.status(401).json({ success: false });
@@ -817,7 +810,6 @@ app.post('/api/admin/licenses/reset-hwid', (req, res) => {
     }
 });
 
-// Update version
 app.post('/api/admin/version/update', (req, res) => {
     const { token, version, forceUpdate, updateMessage } = req.body;
     if (!token) return res.status(401).json({ success: false });
@@ -843,7 +835,6 @@ app.post('/api/admin/version/update', (req, res) => {
     }
 });
 
-// 404
 app.use((req, res) => {
     res.status(404).json({ error: 'Not found' });
 });
